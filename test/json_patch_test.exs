@@ -12,32 +12,34 @@ defmodule JSONPatchTest do
       "json-patch-tests/spec_tests.json"
     ]
     for filename <- @test_suites do
-      with {:ok, text} <- "./test/#{filename}" |> File.read() do
-        tests = text |> Jason.decode!()
+      case "./test/#{filename}" |> File.read() do
+        {:ok, text} ->
+          tests = text |> Jason.decode!()
 
-        for {t, i} <- Enum.with_index(tests) do
-          test "#{filename}[#{i}] (#{t["comment"]})" do
-            tt = unquote(Macro.escape(t))
+          for {t, i} <- Enum.with_index(tests) do
+            test "#{filename}[#{i}] (#{t["comment"]})" do
+              tt = unquote(Macro.escape(t))
 
-            cond do
-              tt["disabled"] ->
-                :skipped
+              cond do
+                tt["disabled"] ->
+                  :skipped
 
-              tt["error"] ->
-                assert({:error, type, desc} = JSONPatch.patch(tt["doc"], tt["patch"]))
-                if tt["error_type"] do
-                  assert(String.to_existing_atom(tt["error_type"]) == type, desc)
-                end
+                tt["error"] ->
+                  assert({:error, type, desc} = JSONPatch.patch(tt["doc"], tt["patch"]))
 
-              tt["expected"] ->
-                assert({:ok, tt["expected"]} == JSONPatch.patch(tt["doc"], tt["patch"]))
+                  if tt["error_type"] do
+                    assert(String.to_existing_atom(tt["error_type"]) == type, desc)
+                  end
 
-              :else ->
-                assert(JSONPatch.patch(tt["doc"], tt["patch"]))
+                tt["expected"] ->
+                  assert({:ok, tt["expected"]} == JSONPatch.patch(tt["doc"], tt["patch"]))
+
+                :else ->
+                  assert(JSONPatch.patch(tt["doc"], tt["patch"]))
+              end
             end
           end
-        end
-      else
+
         _ ->
           IO.puts(
             "Test suite #{filename} not present -- run `mix download-tests` to download test suite"

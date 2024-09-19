@@ -126,28 +126,26 @@ defmodule JSONPatch do
     cond do
       !Map.has_key?(patch, "op") -> {:error, :syntax_error, "missing `op`"}
       !Map.has_key?(patch, "path") -> {:error, :syntax_error, "missing `path`"}
-      :else -> apply_op(patch["op"], doc, patch)
+      true -> apply_op(patch["op"], doc, patch)
     end
   end
 
   @spec apply_op(String.t(), json_document, patch) :: return_value
   defp apply_op("test", doc, patch) do
-    cond do
-      !Map.has_key?(patch, "value") ->
-        {:error, :syntax_error, "missing `value`"}
+    if Map.has_key?(patch, "value") do
+      case Path.get_value_at_path(doc, patch["path"]) do
+        {:ok, path_value} ->
+          if path_value == patch["value"] do
+            {:ok, doc}
+          else
+            {:error, :test_failed, "test failed"}
+          end
 
-      :else ->
-        case Path.get_value_at_path(doc, patch["path"]) do
-          {:ok, path_value} ->
-            if path_value == patch["value"] do
-              {:ok, doc}
-            else
-              {:error, :test_failed, "test failed"}
-            end
-
-          err ->
-            err
-        end
+        err ->
+          err
+      end
+    else
+      {:error, :syntax_error, "missing `value`"}
     end
   end
 
@@ -156,55 +154,51 @@ defmodule JSONPatch do
   end
 
   defp apply_op("add", doc, patch) do
-    cond do
-      !Map.has_key?(patch, "value") ->
-        {:error, :syntax_error, "missing `value`"}
-
-      :else ->
-        Path.add_value_at_path(doc, patch["path"], patch["value"])
+    if Map.has_key?(patch, "value") do
+      Path.add_value_at_path(doc, patch["path"], patch["value"])
+    else
+      {:error, :syntax_error, "missing `value`"}
     end
   end
 
   defp apply_op("replace", doc, patch) do
-    cond do
-      !Map.has_key?(patch, "value") ->
-        {:error, :syntax_error, "missing `value`"}
-
-      :else ->
-        with {:ok, data} <- Path.remove_value_at_path(doc, patch["path"]) do
+    if Map.has_key?(patch, "value") do
+      case Path.remove_value_at_path(doc, patch["path"]) do
+        {:ok, data} ->
           Path.add_value_at_path(data, patch["path"], patch["value"])
-        else
-          err -> err
-        end
+
+        err ->
+          err
+      end
+    else
+      {:error, :syntax_error, "missing `value`"}
     end
   end
 
   defp apply_op("move", doc, patch) do
-    cond do
-      !Map.has_key?(patch, "from") ->
-        {:error, :syntax_error, "missing `from`"}
-
-      :else ->
-        with {:ok, value} <- Path.get_value_at_path(doc, patch["from"]),
-             {:ok, data} <- Path.remove_value_at_path(doc, patch["from"]) do
-          Path.add_value_at_path(data, patch["path"], value)
-        else
-          err -> err
-        end
+    if Map.has_key?(patch, "from") do
+      with {:ok, value} <- Path.get_value_at_path(doc, patch["from"]),
+           {:ok, data} <- Path.remove_value_at_path(doc, patch["from"]) do
+        Path.add_value_at_path(data, patch["path"], value)
+      else
+        err -> err
+      end
+    else
+      {:error, :syntax_error, "missing `from`"}
     end
   end
 
   defp apply_op("copy", doc, patch) do
-    cond do
-      !Map.has_key?(patch, "from") ->
-        {:error, :syntax_error, "missing `from`"}
-
-      :else ->
-        with {:ok, value} <- Path.get_value_at_path(doc, patch["from"]) do
+    if Map.has_key?(patch, "from") do
+      case Path.get_value_at_path(doc, patch["from"]) do
+        {:ok, value} ->
           Path.add_value_at_path(doc, patch["path"], value)
-        else
-          err -> err
-        end
+
+        err ->
+          err
+      end
+    else
+      {:error, :syntax_error, "missing `from`"}
     end
   end
 

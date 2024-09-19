@@ -55,9 +55,10 @@ defmodule JSONPatch.MixProject do
     [
       {:dialyxir, "~> 0.5", only: :dev},
       {:ex_doc, "~> 0.18", only: :dev},
-      {:jason, "~> 1.0", only: :test},
+      {:jason, "~> 1.0", only: [:test, :dev]},
       {:ex_spec, "~> 2.0", only: :test},
       {:excoveralls, "~> 0.8", only: :test},
+      {:credo, "~> 1.7", only: [:test, :dev]}
     ]
   end
 end

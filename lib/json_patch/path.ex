@@ -17,13 +17,21 @@ defmodule JSONPatch.Path do
   @spec split_path(String.t()) :: [String.t() | non_neg_integer]
   def split_path(path)
 
+  def split_path(nil), do: {:error, :path_error, "null is not valid value for 'path'"}
+
   def split_path(""), do: []
 
   def split_path(path) do
-    path
-    |> String.replace_leading("/", "")
-    |> String.split("/")
-    |> Enum.map(&convert_number/1)
+    case path do
+      "/" <> _remainder ->
+        path
+        |> String.replace_leading("/", "")
+        |> String.split("/")
+        |> Enum.map(&convert_number/1)
+
+      _otherwise ->
+        {:error, :path_error, "JSON Pointer should start with a slash"}
+    end
   end
 
   ## Converts string-formatted integers back to integers.
@@ -62,7 +70,7 @@ defmodule JSONPatch.Path do
   defp value_at_path(data, ["-" | rest]) when is_list(data) do
     case Enum.count(data) do
       0 -> {:error, :path_error, "can't use index '-' with empty array"}
-      c -> value_at_path(data, [c-1 | rest])
+      c -> value_at_path(data, [c - 1 | rest])
     end
   end
 
@@ -120,7 +128,7 @@ defmodule JSONPatch.Path do
   defp remove_at_path(data, ["-" | rest]) when is_list(data) do
     case Enum.count(data) do
       0 -> {:error, :path_error, "can't use index '-' with empty array"}
-      c -> remove_at_path(data, [c-1 | rest])
+      c -> remove_at_path(data, [c - 1 | rest])
     end
   end
 
@@ -131,14 +139,14 @@ defmodule JSONPatch.Path do
   defp remove_at_path(%{} = data, [key | rest]) do
     keystr = to_string(key)
 
-    if !Map.has_key?(data, keystr) do
-      {:error, :path_error, "missing key #{keystr}"}
-    else
+    if Map.has_key?(data, keystr) do
       case remove_at_path(data[keystr], rest) do
         {:ok, :removed} -> {:ok, Map.delete(data, keystr)}
         {:ok, value} -> {:ok, Map.put(data, keystr, value)}
         err -> err
       end
+    else
+      {:error, :path_error, "missing key #{keystr}"}
     end
   end
 
@@ -176,11 +184,13 @@ defmodule JSONPatch.Path do
       rest == [] ->
         {:ok, List.insert_at(data, key, value)}
 
-      :else ->
-        with {:ok, v} <- add_at_path(Enum.at(data, key), rest, value) do
-          {:ok, List.replace_at(data, key, v)}
-        else
-          err -> err
+      true ->
+        case add_at_path(Enum.at(data, key), rest, value) do
+          {:ok, v} ->
+            {:ok, List.replace_at(data, key, v)}
+
+          err ->
+            err
         end
     end
   end
@@ -196,20 +206,20 @@ defmodule JSONPatch.Path do
   defp add_at_path(%{} = data, [key | rest], value) do
     keystr = to_string(key)
 
-    cond do
-      rest == [] ->
-        {:ok, Map.put(data, keystr, value)}
-
-      :else ->
-        with {:ok, v} <- add_at_path(data[keystr], rest, value) do
+    if rest == [] do
+      {:ok, Map.put(data, keystr, value)}
+    else
+      case add_at_path(data[keystr], rest, value) do
+        {:ok, v} ->
           {:ok, Map.put(data, keystr, v)}
-        else
-          err -> err
-        end
+
+        err ->
+          err
+      end
     end
   end
 
   defp add_at_path(data, _, _) do
-    {:error, :path_error, "can't index into value #{data}"}
+    {:error, :path_error, "can't index into value #{inspect(data)}"}
   end
 end
