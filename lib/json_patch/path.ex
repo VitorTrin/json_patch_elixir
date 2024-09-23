@@ -1,7 +1,7 @@
 defmodule JSONPatch.Path do
   @moduledoc false
 
-  @doc ~S"""
+  @doc """
   Splits a JSON Pointer (RFC 6901) path into its components.
   Path keys are converted to integers if possible, otherwise
   remaining strings.
@@ -48,7 +48,7 @@ defmodule JSONPatch.Path do
     end
   end
 
-  @doc ~S"""
+  @doc """
   Traverses `data` according to the given `path`, returning `{:ok, value}`
   if a value was found at that path, or `{:error, reason}` otherwise.
   """
@@ -89,7 +89,7 @@ defmodule JSONPatch.Path do
     {:error, :path_error, "can't index into value #{data}"}
   end
 
-  @doc ~S"""
+  @doc """
   Attempts to remove the value at the given path.  Returns the updated
   `{:ok, data}`, otherwise `{:error, reason}.
 
@@ -154,7 +154,7 @@ defmodule JSONPatch.Path do
     {:error, :path_error, "can't index into value #{data}"}
   end
 
-  @doc ~S"""
+  @doc """
   Attempts to add the value at the given path.  Returns the updated
   `{:ok, data}`, otherwise `{:error, reason}.
 

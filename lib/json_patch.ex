@@ -1,5 +1,5 @@
 defmodule JSONPatch do
-  @moduledoc ~S"""
+  @moduledoc """
   JSONPatch is an Elixir implementation of the JSON Patch format,
   described in [RFC 6902](http://tools.ietf.org/html/rfc6902).
 
@@ -57,7 +57,7 @@ defmodule JSONPatch do
 
   @type status_code :: non_neg_integer
 
-  @doc ~S"""
+  @doc """
   Applies JSON Patch (RFC 6902) patches to the given JSON document.
   Returns `{:ok, patched_map}` or `{:error, error_type, description}`.
 
@@ -89,7 +89,7 @@ defmodule JSONPatch do
     end
   end
 
-  @doc ~S"""
+  @doc """
   Converts a `t:return_value/0` or `t:error_type/0' to an HTTP status code.
 
   The HTTP status codes emitted are:
@@ -176,15 +176,13 @@ defmodule JSONPatch do
   end
 
   defp apply_op("move", doc, patch) do
-    if Map.has_key?(patch, "from") do
-      with {:ok, value} <- Path.get_value_at_path(doc, patch["from"]),
-           {:ok, data} <- Path.remove_value_at_path(doc, patch["from"]) do
-        Path.add_value_at_path(data, patch["path"], value)
-      else
-        err -> err
-      end
+    with true <- Map.has_key?(patch, "from"),
+         {:ok, value} <- Path.get_value_at_path(doc, patch["from"]),
+         {:ok, data} <- Path.remove_value_at_path(doc, patch["from"]) do
+      Path.add_value_at_path(data, patch["path"], value)
     else
-      {:error, :syntax_error, "missing `from`"}
+      false -> {:error, :syntax_error, "missing `from`"}
+      err -> err
     end
   end
 
