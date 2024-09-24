@@ -181,5 +181,69 @@ defmodule JSONPatchTest do
                  JSONPatch.patch(document, operations)
       end
     end
+
+    describe "join" do
+      test "joins multiples paths into one value" do
+        document = %{
+          "first" => "ba",
+          "second" => "na",
+          "third" => "na"
+        }
+
+        operations =
+          [
+            %{
+              "op" => "join",
+              "from" => ["/first", "/second", "/third"],
+              "path" => "/joined"
+            }
+          ]
+
+        assert {:ok,
+                %{"first" => "ba", "joined" => "ba,na,na", "second" => "na", "third" => "na"}} ==
+                 JSONPatch.patch(document, operations)
+      end
+
+      test "allows custom joiners" do
+        document = %{
+          "first" => "ba",
+          "second" => "na",
+          "third" => "na"
+        }
+
+        operations =
+          [
+            %{
+              "op" => "join",
+              "from" => ["/first", "/second", "/third"],
+              "path" => "/joined",
+              "joiner" => ""
+            }
+          ]
+
+        assert {:ok, %{"first" => "ba", "joined" => "banana", "second" => "na", "third" => "na"}} ==
+                 JSONPatch.patch(document, operations)
+      end
+
+      test "validates from parameter" do
+        document = %{
+          "first" => "ba",
+          "second" => "na",
+          "third" => "na"
+        }
+
+        operations =
+          [
+            %{
+              "op" => "join",
+              "path" => "/joined"
+            }
+          ]
+
+        assert {:error, :syntax_error,
+                "missing `from` (patches[0], %{\"op\" => \"join\", \"path\" => \"/joined\"})"} ==
+                 JSONPatch.patch(document, operations)
+      end
+    end
   end
 end

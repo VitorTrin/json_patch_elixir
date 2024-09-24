@@ -228,6 +228,17 @@ defmodule JSONPatch do
     {:error, :syntax_error, "missing `sub_operations`"}
   end
 
+  defp apply_op("join", doc, %{"from" => from, "path" => path} = patch) when is_list(from) do
+    with {:ok, values} <- get_values(doc, from),
+         joiner <- Map.get(patch, "joiner", ",") do
+      Path.add_value_at_path(doc, path, Enum.join(values, joiner))
+    end
+  end
+
+  defp apply_op("join", _doc, _patch) do
+    {:error, :syntax_error, "missing `from`"}
+  end
+
   defp apply_op(op, _doc, _patch) do
     {:error, :syntax_error, "not implemented: #{op}"}
   end
@@ -257,5 +268,21 @@ defmodule JSONPatch do
           other
       end)
     end)
+  end
+
+  defp get_values(doc, from) do
+    from
+    |> Enum.reduce_while([], fn from_item, accumulator ->
+      doc
+      |> Path.get_value_at_path(from_item)
+      |> case do
+        {:ok, value} -> {:cont, [value | accumulator]}
+        error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:error, _kind, _message} = error -> error
+      list when is_list(list) -> {:ok, Enum.reverse(list)}
+    end
   end
 end
