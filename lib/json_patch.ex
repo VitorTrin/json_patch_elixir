@@ -200,7 +200,107 @@ defmodule JSONPatch do
     end
   end
 
+  # Operation outside the RFC that allows to change variable sized arrays.
+  # The `path` parameter must point to the array that will be iterated.
+  # Must have a `sub_operations` parameter with a list of operations that will be executed
+  # once for each item in the array
+  # To allow addresing the array, there is a pattern in the `path` and `from`
+  # that will be replaced with the index in the array, by default it's `$?`
+  defp apply_op("iterate", doc, %{"sub_operations" => sub_operations} = patch)
+       when is_list(sub_operations) do
+    with {:ok, path_list} <- Path.get_value_at_path(doc, patch["path"]),
+         replacement_character <- Map.get(patch, "replacement_character", "$?") do
+      Enum.reduce_while(0..(length(path_list) - 1), {:ok, doc}, fn index, {:ok, updated_doc} ->
+        sub_operations
+        |> replace_characters(replacement_character, index)
+        |> then(fn updated_sub_operations ->
+          patch(updated_doc, updated_sub_operations)
+        end)
+        |> case do
+          {:ok, finished_doc} -> {:cont, {:ok, finished_doc}}
+          {:error, _kind, _explanation} = error -> {:halt, error}
+        end
+      end)
+    end
+  end
+
+  defp apply_op("iterate", _doc, _patch) do
+    {:error, :syntax_error, "missing `sub_operations`"}
+  end
+
+  # Join values just like Enum.map and adds to path
+  defp apply_op("join", doc, %{"from" => from, "path" => path} = patch) when is_list(from) do
+    with {:ok, values} <- get_values(doc, from),
+         joiner <- Map.get(patch, "joiner", ",") do
+      Path.add_value_at_path(doc, path, values |> Enum.map(&to_string/1) |> Enum.join(joiner))
+    end
+  end
+
+  defp apply_op("join", _doc, _patch) do
+    {:error, :syntax_error, "missing `from`"}
+  end
+
+  defp apply_op("sum", doc, %{"from" => from, "path" => path}) when is_list(from) do
+    case get_values(doc, from) do
+      {:ok, values} ->
+        Path.add_value_at_path(doc, path, Enum.sum(values))
+
+      error ->
+        error
+    end
+  end
+
+  defp apply_op("sum", _doc, _patch) do
+    {:error, :syntax_error, "missing `from`"}
+  end
+
   defp apply_op(op, _doc, _patch) do
     {:error, :syntax_error, "not implemented: #{op}"}
+  end
+
+  defp replace_characters(operations, replacement_character, index) do
+    Enum.map(operations, fn operation ->
+      operation
+      |> Map.update("path", nil, fn
+        path when is_binary(path) ->
+          String.replace(path, replacement_character, to_string(index))
+
+        other ->
+          other
+      end)
+      |> Map.update("from", nil, fn
+        from when is_binary(from) ->
+          String.replace(from, replacement_character, to_string(index))
+
+        from when is_list(from) ->
+          Enum.map(from, &String.replace(&1, replacement_character, to_string(index)))
+
+        other ->
+          other
+      end)
+      |> Map.update("sub_operations", nil, fn
+        sub_operations when is_list(sub_operations) ->
+          replace_characters(sub_operations, replacement_character, index)
+
+        other ->
+          other
+      end)
+    end)
+  end
+
+  defp get_values(doc, from) do
+    from
+    |> Enum.reduce_while([], fn from_item, accumulator ->
+      doc
+      |> Path.get_value_at_path(from_item)
+      |> case do
+        {:ok, value} -> {:cont, [value | accumulator]}
+        error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:error, _kind, _message} = error -> error
+      list when is_list(list) -> {:ok, Enum.reverse(list)}
+    end
   end
 end
