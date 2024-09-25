@@ -244,6 +244,81 @@ defmodule JSONPatchTest do
                 "missing `from` (patches[0], %{\"op\" => \"join\", \"path\" => \"/joined\"})"} ==
                  JSONPatch.patch(document, operations)
       end
+
+      test "joins non string values" do
+        document = %{
+          "first" => "Easy as",
+          "second" => 1,
+          "third" => "2 3"
+        }
+
+        operations =
+          [
+            %{
+              "op" => "join",
+              "from" => ["/first", "/second", "/third"],
+              "path" => "/joined",
+              "joiner" => " "
+            }
+          ]
+
+        assert {:ok,
+                %{
+                  "first" => "Easy as",
+                  "joined" => "Easy as 1 2 3",
+                  "second" => 1,
+                  "third" => "2 3"
+                }} ==
+                 JSONPatch.patch(document, operations)
+      end
+
+      test "used together with iterate can join varied size arrays" do
+        document = %{
+          "array" => ["1", "2", "3", " surprise"],
+          "joined" => ["0"]
+        }
+
+        operations =
+          [
+            %{
+              "op" => "iterate",
+              "path" => "/array",
+              "sub_operations" => [
+                %{
+                  "op" => "join",
+                  "from" => ["/joined", "/array/$?"],
+                  "path" => "/joined",
+                  "joiner" => ","
+                }
+              ]
+            }
+          ]
+
+        assert {:ok, %{"array" => ["1", "2", "3", " surprise"], "joined" => "0,1,2,3, surprise"}} ==
+                 JSONPatch.patch(document, operations)
+      end
+    end
+
+    describe "sum" do
+      test "sums numeric values" do
+        document = %{
+          "first" => 1,
+          "second" => 2,
+          "third" => 8.8
+        }
+
+        operations =
+          [
+            %{
+              "op" => "sum",
+              "from" => ["/first", "/second", "/third"],
+              "path" => "/summed"
+            }
+          ]
+
+        assert {:ok, %{"first" => 1, "second" => 2, "third" => 8.8, "summed" => 11.8}} ==
+                 JSONPatch.patch(document, operations)
+      end
     end
   end
 end

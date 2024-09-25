@@ -228,14 +228,29 @@ defmodule JSONPatch do
     {:error, :syntax_error, "missing `sub_operations`"}
   end
 
+  # Join values just like Enum.map and adds to path
   defp apply_op("join", doc, %{"from" => from, "path" => path} = patch) when is_list(from) do
     with {:ok, values} <- get_values(doc, from),
          joiner <- Map.get(patch, "joiner", ",") do
-      Path.add_value_at_path(doc, path, Enum.join(values, joiner))
+      Path.add_value_at_path(doc, path, values |> Enum.map(&to_string/1) |> Enum.join(joiner))
     end
   end
 
   defp apply_op("join", _doc, _patch) do
+    {:error, :syntax_error, "missing `from`"}
+  end
+
+  defp apply_op("sum", doc, %{"from" => from, "path" => path}) when is_list(from) do
+    case get_values(doc, from) do
+      {:ok, values} ->
+        Path.add_value_at_path(doc, path, Enum.sum(values))
+
+      error ->
+        error
+    end
+  end
+
+  defp apply_op("sum", _doc, _patch) do
     {:error, :syntax_error, "missing `from`"}
   end
 
@@ -256,6 +271,9 @@ defmodule JSONPatch do
       |> Map.update("from", nil, fn
         from when is_binary(from) ->
           String.replace(from, replacement_character, to_string(index))
+
+        from when is_list(from) ->
+          Enum.map(from, &String.replace(&1, replacement_character, to_string(index)))
 
         other ->
           other
