@@ -132,20 +132,19 @@ defmodule JSONPatch do
 
   @spec apply_op(String.t(), json_document, patch) :: return_value
   defp apply_op("test", doc, patch) do
-    if Map.has_key?(patch, "value") do
-      case Path.get_value_at_path(doc, patch["path"]) do
-        {:ok, path_value} ->
-          if path_value == patch["value"] do
-            {:ok, doc}
-          else
-            {:error, :test_failed, "test failed"}
-          end
-
-        err ->
-          err
-      end
+    with true <- Map.has_key?(patch, "value"),
+         {:ok, path_value} <- Path.get_value_at_path(doc, patch["path"]),
+         {:compare, true} <- {:compare, path_value == patch["value"]} do
+      {:ok, doc}
     else
-      {:error, :syntax_error, "missing `value`"}
+      false ->
+        {:error, :syntax_error, "missing `value`"}
+
+      {:compare, false} ->
+        {:error, :test_failed, "test failed"}
+
+      error ->
+        error
     end
   end
 
@@ -232,7 +231,7 @@ defmodule JSONPatch do
   defp apply_op("join", doc, %{"from" => from, "path" => path} = patch) when is_list(from) do
     with {:ok, values} <- get_values(doc, from),
          joiner <- Map.get(patch, "joiner", ",") do
-      Path.add_value_at_path(doc, path, values |> Enum.map(&to_string/1) |> Enum.join(joiner))
+      Path.add_value_at_path(doc, path, Enum.map_join(values, joiner, &to_string/1))
     end
   end
 

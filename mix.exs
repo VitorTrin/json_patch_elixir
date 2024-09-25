@@ -6,7 +6,7 @@ defmodule JSONPatch.MixProject do
       app: :json_patch,
       description: "An Elixir implementation of JSON Patch (RFC 6902)",
       package: package(),
-      version: "0.8.0",
+      version: "1.0.0",
       elixir: "~> 1.4",
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -53,11 +53,11 @@ defmodule JSONPatch.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:dialyxir, "~> 0.5", only: :dev},
-      {:ex_doc, "~> 0.18", only: :dev},
-      {:jason, "~> 1.0", only: [:test, :dev]},
+      {:dialyxir, "~> 1.4", only: :dev},
+      {:ex_doc, "~> 0.34", only: :dev},
+      {:jason, "~> 1.4", only: [:test, :dev]},
       {:ex_spec, "~> 2.0", only: :test},
-      {:excoveralls, "~> 0.8", only: :test},
+      {:excoveralls, "~> 0.18", only: :test},
       {:credo, "~> 1.7", only: [:test, :dev]}
     ]
   end
