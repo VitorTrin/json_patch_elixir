@@ -35,7 +35,7 @@ operations, that can be configured with the `replacement_character` argument. If
 
 ```elixir
 
-iex> JsonPatch.patch(
+iex> JSONPatch.patch(
 ...>   %{
 ...>      "array" => [1, 2, 3],
 ...>      "second_array" => []
@@ -58,7 +58,7 @@ Joins every value of `from`, just like `Enum.join/1` at `path`. Accepts a joiner
 
 ```elixir
 
-iex> JsonPatch.patch(%{
+iex> JSONPatch.patch(%{
 ...>      "first" => "ba",
 ...>      "second" => "na",
 ...>      "third" => "na"
@@ -81,7 +81,7 @@ Sums the values in `from`, just like `Enun.sum/1`.
 
 ```elixir
 
-iex> JsonPatch.patch(%{
+iex> JSONPatch.patch(%{
 ...>      "first" => 1,
 ...>      "second" => 2,
 ...>      "third" => 8.8
